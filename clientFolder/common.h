@@ -8,6 +8,7 @@
 #include <string.h> 
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdio_ext.h>
 
 #include <setjmp.h>         //setjmp 사용
 #include <signal.h>          //signal 처리
@@ -24,14 +25,14 @@
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 
-#define BUF_SIZE 4096
+#define BUF_SIZE 1040
 #define TRUE    1
 #define FALSE   0
 
-unsigned char aes_key[BUF_SIZE]; // 키 공유할 변수
-unsigned char iv[BUF_SIZE];
+unsigned char aes_key[32]; // 키 공유할 변수
+unsigned char iv[16];
 
-typedef struct admin_info {
+typedef struct admin_info{
     char id[BUF_SIZE];
     char pw[BUF_SIZE];
     char name[BUF_SIZE];
@@ -39,8 +40,10 @@ typedef struct admin_info {
 
 char buf[BUF_SIZE];
 
-#define HOST_PORT "127.0.0.1:8888"
+char HOSTADDRESS[80];  //BIO를 위한 풀 IP +PORT
+char HOSTIP[40];       //socket을 위한 ip
+int HOSTPORT;      //socket을 위한 port
 
 
-void secure_write(BIO* socket_bio, char* buf, int buf_size);  //write 및 암호화
-char* secure_read(BIO* socket_bio, char* buf, int buf_size);  //read 및 복호화
+void secure_write(int socketfd, char * buffer, int buf_size);  //write 및 암호화
+char * secure_read(int socketfd,char * buffer, int buf_size);  //read 및 복호화
