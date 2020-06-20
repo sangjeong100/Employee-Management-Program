@@ -56,12 +56,12 @@ personal project of System Software Security and Practice
 
 ## 4. makefile 사용 방법
  1. server
- - make -> 실행파일 생성
- - make clean -> 실행파일 및 pem파일(RSA 공개키, 비밀키) 삭제
- - make clean_all -> 실행파일 및 pem파일, 그리고 모든 DB 파일 삭제
+    - make -> 실행파일 생성
+    - make clean -> 실행파일 및 pem파일(RSA 공개키, 비밀키) 삭제
+    - make clean_all -> 실행파일 및 pem파일, 그리고 모든 DB 파일 삭제
  2. client
- - make -> 실행파일 생성
- - make clean -> 실행파일 및 pem파일(RSA 공개키) 삭제
+    - make -> 실행파일 생성
+    - make clean -> 실행파일 및 pem파일(RSA 공개키) 삭제
  
 ## 5. 실행 방법
 - ./server "Your IP" "Your Port"
