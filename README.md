@@ -27,7 +27,7 @@ personal project of System Software Security and Practice
     - Server가 Client로부터 ID, PW 입력받음 
         - 로그인 기회 5번
         - ID와 PW, 둘 중 하나 틀리면 로그인 기회를 줄임
-        - 5회틀리면, 로그인세션을 60초동안 막고, SIGINT를 막음
+        - 5회틀리면, 로그인세션을 60초동안 막고, 이전 메뉴로 돌려보냄
        - 로그인 성공 시, DB 관레 메뉴로 이동
        - Admin이 하나도 등록되지 않았으면, 이전 메뉴로 복귀시킴     
 

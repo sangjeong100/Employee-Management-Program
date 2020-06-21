@@ -22,10 +22,18 @@ struct sockaddr_in client_addr, server_addr;
 
 admin_info admin;                       //로그인 중인 admin 저장.
 
-void Server();                          //server routine 시작
 void secure_socket_init();                     //socket bind 함수
 void connect_listen();                  //socket listen 함수
-void server_ection();                       //로그인 성공한 후, routine
+
+void Server();                          //server routine 시작
+int sign_in();                          //로그인 처리
+int sign_up();                          //회원가입 처리
+
+int server_section();               //로그인 후 server section
+void Employee_Registration();       //사원 등록 처리
+void Department_Information();      //부서 정보 조회 처리
+void Employee_Search();             //사원 정보 조회 처리
+void Employee_Delete();             //사원 정보 삭제 처리
 
 int main(int argc, char** argv)
 {
@@ -61,7 +69,7 @@ void secure_write(int socketfd, char * buffer, int buf_size)
 
     EVP_CIPHER_CTX *ctx;                //암호화 컨텍스트 -> 암호화 데이터의 정보 저장되는 구조체
 
-    if(!(ctx = EVP_CIPHER_CTX_new()))
+    if(!(ctx = EVP_CIPHER_CTX_new()))  //ctx 초기화
     {
         fprintf(stderr,"ctx new error!\n");
         exit(-1);
@@ -70,12 +78,14 @@ void secure_write(int socketfd, char * buffer, int buf_size)
     plain_length = 1024;
 
     //AES 256 cbc 모드로 암호화 진행
+    //암호화를 위한 초기 설정
     if((EVP_EncryptInit_ex(ctx,EVP_aes_256_cbc(), NULL, aes_key, iv)) != 1)
     {
         fprintf(stderr, "EVP_EncryptInit error!\n");
         exit(-1);
     }
 
+    //암호화 수행
     if((EVP_EncryptUpdate(ctx, cipher, &out_length, buffer, plain_length)) != 1)
     {
         fprintf(stderr, "EVP_CipherUpdate error!\n");
@@ -84,6 +94,7 @@ void secure_write(int socketfd, char * buffer, int buf_size)
 
     cipher_length = out_length;
 
+    //패딩등 필요한 작업을 처리
     if ((EVP_EncryptFinal_ex(ctx, cipher + out_length, &out_length)) != 1)
     {
         fprintf(stderr,"EV_EnctyptFinal error!\n");
@@ -138,7 +149,6 @@ char * secure_read(int socketfd,char * buffer,int buf_size)
     cipher_length = 1040;
 
     //AES-128 cbc 모드로 복호화 수행
-    EVP_CIPHER_CTX_init(ctx);
     if ((EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, aes_key, iv)) != 1)
     {
         fprintf(stderr,"EVP_DecryptInit error!\n");
@@ -260,12 +270,14 @@ int Sign_up()
             key_count++;
         }
         
-        
     }
     
 
-    if(key_count == 5)      //client가 admin key 5회 틀렸을 시, client는 강제종료 되어서 
-        return 0;           //다시 client를 listening한다.
+    if (key_count == 5)      //client가 admin key 5회 틀렸을 시, client는 강제종료 되어서 
+    {
+        printf("Client가 admin_key 입력기회를 모두 사용하였습니다.\n");
+        return 0;
+    }
     else 
         return 1;
 }
@@ -487,7 +499,6 @@ void Department_Information()
         memset(temp_str,0,BUF_SIZE);
         fgets(temp_str,BUF_SIZE,department_fp);                  //파일 한줄 읽고
         printf("%s",temp_str);
-        //temp_str[strlen(temp_str)] = '\0';
         secure_write(socketfd,temp_str,BUF_SIZE);              //client에게 전송
     }
 
@@ -557,16 +568,10 @@ void Employee_Search()
             
             break;
         }   
-        else 
-        {
-            //secure_write(socketfd,"error",BUF_SIZE);
-            printf("error발생 다시 입력 받음.\n");
-            memset(select,0,BUF_SIZE);
-        }
     }
     
     FILE *employee_fp; 
-    if((employee_fp = fopen(EMPLOYEE_LIST,"r")) == NULL)        //Userlist 파일 open
+    if((employee_fp = fopen(EMPLOYEE_LIST,"a+t")) == NULL)        //Userlist 파일 open
     {
         fprintf(stderr,"fopen error\n");
         exit(-1);
@@ -580,7 +585,6 @@ void Employee_Search()
     //찾는 내용 있는지 검사
     while(!feof(employee_fp))
     {
-        printf("As\n");
         memset(send_tmp, 0, BUF_SIZE);
         memset(str_tmp, 0 , BUF_SIZE); 
         fgets(str_tmp,BUF_SIZE,employee_fp);    //맨 첫줄 제외 
@@ -592,7 +596,6 @@ void Employee_Search()
 
         while(p != NULL)
         {
-            printf("p:%s\n",p);
             if(!strcmp(p,buf))               //검색 요청사항이 있으면  
             {
                 printf("%s",str_tmp);
@@ -621,8 +624,7 @@ void Employee_Delete()
     FILE *employee_fp; 
     if((employee_fp = fopen(EMPLOYEE_LIST,"a+t")) == NULL)        //Userlist 파일 open
     {
-        printf("현재 어떤 사원도 등록되어 있지 않습니다.\n");
-        secure_write(socketfd,"현재 어떤 사원도 등록되어 있지 않습니다.",BUF_SIZE );
+        fprintf(stderr,"fopen error!\n");
         return;
     }
 
@@ -650,13 +652,12 @@ void Employee_Delete()
         char *p = strtok(str_tmp," \n");
         
         if(p==NULL) break;
-        strcpy(delete_depart,p);
+        strcpy(delete_depart,p); //삭제된 부서 저장
         p = strtok(NULL," \n");
         p = strtok(NULL," \n");
 
         if(!strcmp(p,delete))               //검색 요청사항이 있으면
         {
-            delete_depart[3] = '\0';
             strcpy(delete_tmp,str_tmp2);    //삭제 내용 저장  
             check = 1;                  //삭제한 놈 있음을 check
         }
@@ -789,18 +790,12 @@ int server_section()
             printf("Client와의 연결을 종료합니다.\n");
             printf("program을 종료합니다.\n");
             
-            close(socketfd);
-            close(server_socketfd);
+            close(socketfd);            //socket
+            close(server_socketfd);     //close
             sleep(1);
-            exit(1);
-        }
-        else                                        //error 처리 루틴
-        {
-            secure_write(socketfd,"error",BUF_SIZE);      //error 발생 알림
-            printf("error 발생. 다시 입력받음\n");
+            exit(1);                    //server 종료
         }
         
-
     }
 }
 
@@ -819,7 +814,15 @@ void Server()
 
             printf("Sign_up\n");
             if(!Sign_up())              //client 강제종료 당했으면 server routine 종료
-                break;
+            {    
+                printf("Client와의 연결을 종료합니다.\n");
+                printf("program을 종료합니다.\n");
+                
+                close(socketfd);
+                close(server_socketfd);
+                sleep(1);
+                exit(1);
+            } 
         }   
         else if(!strcmp(mode,"sign_in"))        //login 일 시,
         {
@@ -863,7 +866,6 @@ void Server()
 void RSA_key_generator(RSA** rsa_object, int bits)
 {
     BIGNUM * e = NULL;
-    // BIO *temp = NULL;
     e = BN_new();
     if(BN_set_word(e, RSA_F4) != 1) 
     {
@@ -892,8 +894,8 @@ void RSA_key_generator(RSA** rsa_object, int bits)
 	FILE *pub_fp = fopen("public.pem", "wb"); 
 	if(!pub_fp)
 	{
-		perror("fopen PRIV");
-		exit(1);
+        fprintf(stderr, "fopen error!\n");
+        exit(-1);
 	}
 
  	//public.pem 파일에 개인키 저장
@@ -908,8 +910,8 @@ void RSA_key_generator(RSA** rsa_object, int bits)
 	FILE *fp = fopen("private.pem", "wb"); 
 	if(!fp)
 	{
-		perror("fopen PRIV");
-		exit(1);
+        fprintf(stderr, "fopen error!\n");
+        exit(-1);
 	}
 
 
